@@ -1,3 +1,5 @@
+
+
 import re
 from collections.abc import Iterable
 import numpy as np
@@ -10,8 +12,6 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import RegexpTokenizer
 import sys
-
-
 
 
 # Some strings for ctype-style character classification
@@ -62,7 +62,6 @@ class Preprocessor:
     def decontracted_strings(self,phrase):
         '''
         Removal of Decontracted Strings
-
         '''
         # specific
         phrase = re.sub(r"won\'t", "will not", phrase)
@@ -85,15 +84,17 @@ class Preprocessor:
         Keyword argument:
         - text_string: string instance
         Exceptions raised:
-        - InputError: occurs should a non-string argument be passed
+        - Exception: occurs should a non-string argument be passed
         '''
 
         if text_string is None or text_string == "":
             return ""
         elif isinstance(text_string, str):
             return " ".join(re.sub(r'\\\w', "", text_string).split())
+        elif isinstance(text_string, list):
+            return [ re.sub(r'\\\w', "", intext).split() for intext in text_string ]
         else:
-            raise InputError("string not passed as argument")
+            raise Exception("string not passed as argument")
 
     def removeUnicode(self,text):
         '''
@@ -121,57 +122,62 @@ class Preprocessor:
 
         '''
         Removal of Hypen inbetween words for a text corpus
-
         '''
 
         empty_str = ''
         space_str = ' '
-        text = re.sub(r"([a-zA-Z])\-([a-zA-Z])", r"\1 \2", text)
+
+        if isinstance(text,str):
+            text = re.sub(r"([a-zA-Z])\-([a-zA-Z])", r"\1 \2", text)
+            return text
+        elif isinstance(text,list):
+            return [ re.sub(r"([a-zA-Z])\-([a-zA-Z])", r"\1 \2", intext.strip()) for intext in text ]
 
         return text
 
     def removeNumbers(self,text,flag='digits'):
         '''
         Removal of Numbers words for a text corpus
-
         '''
         empty_str = ''
 
-        translation = text.maketrans(empty_str,empty_str,digits)
-
-        text = text.translate(translation)
-
-        return text
+        if isinstance(text,str):
+            text = self.decontracted_strings(text)
+            translation = text.maketrans(empty_str,empty_str,digits)
+            text = text.translate(translation)
+            return text.strip()
+        elif isinstance(text,list):
+            return [ intext.translate(intext.maketrans(empty_str,empty_str,digits)).strip() for intext in text ]
 
     def removePunctuation(self,text):
 
         '''
         Removal of Punctuations words for a text corpus
         Along with removal of Decontracted Strings [ Apostrafi's with a word ]
-
         '''
-
-
         empty_str = ''
-        text = self.decontracted_strings(text)
-        translation = text.maketrans(empty_str,empty_str,punctuation)
 
-        text = text.translate(translation)
-
-        return text
+        if isinstance(text,str):
+            text = self.decontracted_strings(text)
+            translation = text.maketrans(empty_str,empty_str,punctuation)
+            text = text.translate(translation)
+            return text.strip()
+        elif isinstance(text,list):
+            return [ intext.translate(intext.maketrans(empty_str,empty_str,punctuation)).strip() for intext in text ]
 
     def removeStopWords(self,inputText):
 
         '''
         Removal of stop words for a text corpus
         Stop words are cached from nltk module
-
         '''
-
         cachedStopWords = stopwords.words("english")
 
-        text = ' '.join([word for word in inputText.split() if word not in cachedStopWords])
-        return text
+        if isinstance(inputText,str):
+            text = ' '.join([word for word in inputText.split() if word not in cachedStopWords])
+            return text.strip()
+        elif isinstance(inputText,list):
+            return [word.strip() for word in inputText if word not in cachedStopWords]
 
     def additional_text_removal(self,text):
 
@@ -275,10 +281,8 @@ class Preprocessor:
 
         '''
         Generate BiGrams for an input list . Traditional way
-
         Arguments:
         input_list ---> Input list for which N - gram needs to be generated.
-
         '''
 
         bigram_list = []
@@ -290,10 +294,8 @@ class Preprocessor:
 
         '''
         Generate BiGrams for an input list
-
         Arguments:
         input_list ---> Input list for which N - gram needs to be generated.
-
         '''
 
 
@@ -303,12 +305,9 @@ class Preprocessor:
 
         '''
         Generate N Grams for an input list
-
         Arguments:
         input_list ---> Input list for which N - gram needs to be generated.
-
         n ---> Specifies the range for which the grams are to be generated
-
         '''
 
         return zip(*[input_list[i:] for i in range(n)])
@@ -342,19 +341,17 @@ class Preprocessor:
         return collections.Counter(map(lambda x:x.lower() ,arr))
 
 
-    def preprocess_text(self,text_string, function_list,listFlag=False):
+    def preprocess_text(self,text_string, function_list,strFlag=False):
         '''
         Given each function within function_list, applies the order of functions put forward onto
         text_string, returning the processed string as type str.
         Keyword argument:
         - function_list: list of functions available in preprocessing.text
         - text_string: string instance
-
         Exceptions raised:
-
         - FunctionError: occurs should an invalid function be passed within the list of functions
-        - InputError: occurs should text_string be non-string, or function_list be non-list
-        - listFlag : Default True , returns text_string as a list
+        - Exception: occurs should text_string be non-string, or function_list be non-list
+        - strFlag : Default True , returns text_string as a list
         '''
         # if isinstance(text_string,np.ndarray):
         #
@@ -374,23 +371,23 @@ class Preprocessor:
             else:
                 raise Exception("list of functions not passed as argument for function_list")
         elif isinstance(text_string, list):
-            text_string = self.list2str(text_string)
+            #text_string = self.list2str(text_string)
             if isinstance(function_list, list):
                 for func in function_list:
                     try:
                         text_string = func(text_string)
-                    except (NameError, TypeError):
-                        raise Exception("Invalid function passed as element of function_list.\nKindly check for valid functions")
+                    except (NameError, TypeError) as e :
+                        raise Exception("Invalid function passed as element of function_list due to Exception - {0} .\nKindly check for valid functions".format(e))
                     except:
                         raise
-                if listFlag:
-                    return [x for x in text_string.split()]
+                if strFlag:
+                    return ' '.join([x.strip() for x in text_string])
                 else:
                     return text_string
             else:
                 raise Exception("list of functions not passed as argument for function_list")
         elif isinstance(text_string, np.ndarray):
-            text_string = self.list2str(text_string)
+            #text_string = self.list2str(text_string)
             if isinstance(function_list, list):
                 for func in function_list:
                     try:
@@ -399,8 +396,8 @@ class Preprocessor:
                         raise Exception("Invalid function passed as element of function_list.\nKindly check for valid functions")
                     except:
                         raise
-                if listFlag:
-                    return [','.join(x) for x in text_string.split()]
+                if strFlag:
+                    return ' '.join([x.strip() for x in text_string])
                 else:
                     return text_string
             else:
@@ -418,7 +415,7 @@ class Preprocessor:
         Keyword argument:
         - text_string: string instance
         Exceptions raised:
-        - InputError: occurs should a non-string argument be passed
+        - Exception: occurs should a non-string argument be passed
         '''
 
         if text_string is None or text_string == "":
@@ -426,7 +423,7 @@ class Preprocessor:
         elif isinstance(text_string, str):
             return LEMMATIZER.lemmatize(text_string)
         else:
-            raise InputError("string not passed as primary argument")
+            raise Exception("string not passed as primary argument")
 
 
     def lowercase(self,text_string):
@@ -440,7 +437,7 @@ class Preprocessor:
         elif isinstance(text_string, str):
             return text_string.lower()
         else:
-            raise InputError("string not passed as argument for text_string")
+            raise Exception("string not passed as argument for text_string")
 
     def remove_number_words(self,text_string):
         '''
@@ -449,7 +446,7 @@ class Preprocessor:
         Keyword argument:
         - text_string: string instance
         Exceptions raised:
-        - InputError: occurs should a non-string argument be passed
+        - Exception: occurs should a non-string argument be passed
         '''
         NUMBER_WORDS = ["zero","first","second","third","fourth","fifth","sixth","seventh","eigth","ninth","tenth","quarter","half","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen","twenty","twenty-one","twenty-two","twenty-three","twenty-four","twenty-five","twenty-six","twenty-seven","twenty-eight","twenty-nine","thirty","thirty-one","thirty-two","thirty-three","thirty-four","thirty-five","thirty-six","thirty-seven","thirty-eight","thirty-nine","forty","forty-one","forty-two","forty-three","forty-four","forty-five","forty-six","forty-seven","forty-eight","forty-nine","fifty","fifty-one","fifty-two","fifty-three","fifty-four","fifty-five","fifty-six","fifty-seven","fifty-eight","fifty-nine","sixty","sixty-one","sixty-two","sixty-three","sixty-four","sixty-five","sixty-six","sixty-seven","sixty-eight","sixty-nine","seventy","seventy-one","seventy-two","seventy-three","seventy-four","seventy-five","seventy-six","seventy-seven","seventy-eight","seventy-nine","eighty","eighty-one","eighty-two","eighty-three","eighty-four","eighty-five","eighty-six","eighty-seven","eighty-eight","eighty-nine","ninety","ninety-one","ninety-two","ninety-three","ninety-four","ninety-five","ninety-six","ninety-seven","ninety-eight","ninety-nine","hundred","thousand","million","trillion","billion"]
 
@@ -459,5 +456,7 @@ class Preprocessor:
             for word in NUMBER_WORDS:
                 text_string = re.sub(r'[\S]*\b'+word+r'[\S]*', "", text_string)
             return " ".join(text_string.split())
+        elif isinstance(text_string, list):
+            return [ re.sub(r'[\S]*\b'+word+r'[\S]*', "", intext) for intext in text_string for word in NUMBER_WORDS ]
         else:
-            raise InputError("String value not passed as argument")
+            raise Exception("String value not passed as argument")
