@@ -26,8 +26,6 @@ punctuation = r"!\"#$%&'()*+,-./:;<=>?@[\]^_`{|}~"
 punctuation_nonPeriod = r"!\"#$%&'()*+,-/:;<=>?@[\]^_`{|}~"
 printable = digits + ascii_letters + punctuation + whitespace
 unicode_str = '0123456789abcdefABCDEF\\xX'
-LEMMATIZER = WordNetLemmatizer()
-
 
 trans_table = {
     'whitespace': None,
@@ -43,7 +41,6 @@ trans_table = {
 
 
 class Preprocessor:
-
 
     def removeShortwords(self,text):
         text = re.sub(r'\b\w{,1}\b', '',text)
@@ -171,6 +168,9 @@ class Preprocessor:
         Removal of stop words for a text corpus
         Stop words are cached from nltk module
         '''
+        if not nltk.data.find('corpora/stopwords'):
+            nltk.download('stopwords')
+
         cachedStopWords = stopwords.words("english")
 
         if isinstance(inputText,str):
@@ -184,8 +184,6 @@ class Preprocessor:
         '''
         Additional Modifications and removals for the input text
         '''
-
-
         #text = re.sub(r"[^A-Za-z0-9]", " ", text)
         text = re.sub(r"what's", "", text)
         text = re.sub(r"What's", "", text)
@@ -242,104 +240,6 @@ class Preprocessor:
 
         return text
 
-    def _word_ngrams(self, tokens, stop_words=None):
-
-        """
-        Turn tokens into a sequence of n-grams after stop words filtering
-        """
-
-        # handle stop words
-        if stop_words is not None:
-            tokens = [w for w in tokens if w not in stop_words]
-
-        # handle token n-grams
-        min_n, max_n = self.ngram_range
-        if max_n != 1:
-            original_tokens = tokens
-            if min_n == 1:
-                # no need to do any slicing for unigrams
-                # just iterate through the original tokens
-                tokens = list(original_tokens)
-                min_n += 1
-            else:
-                tokens = []
-
-            n_original_tokens = len(original_tokens)
-
-            # bind method outside of loop to reduce overhead
-            tokens_append = tokens.append
-            space_join = " ".join
-
-            for n in xrange(min_n,
-                            min(max_n + 1, n_original_tokens + 1)):
-                for i in xrange(n_original_tokens - n + 1):
-                    tokens_append(space_join(original_tokens[i: i + n]))
-
-        return tokens
-
-    def generate_bigrams_traditional(self,input_list):
-
-        '''
-        Generate BiGrams for an input list . Traditional way
-        Arguments:
-        input_list ---> Input list for which N - gram needs to be generated.
-        '''
-
-        bigram_list = []
-        for i in range(len(input_list)-1):
-            bigram_list.append((input_list[i], input_list[i+1]))
-        return bigram_list
-
-    def gen_bigrams(self,input_list):
-
-        '''
-        Generate BiGrams for an input list
-        Arguments:
-        input_list ---> Input list for which N - gram needs to be generated.
-        '''
-
-
-        return zip(input_list, input_list[1:])
-
-    def generate_ngrams(self,input_list, n):
-
-        '''
-        Generate N Grams for an input list
-        Arguments:
-        input_list ---> Input list for which N - gram needs to be generated.
-        n ---> Specifies the range for which the grams are to be generated
-        '''
-
-        return zip(*[input_list[i:] for i in range(n)])
-
-    def gen_ngrams_scikit_learn(self,input_tokens,min_n=1,max_n=1):
-        original_tokens = []
-        tokens = input_tokens
-
-        if max_n != 1:
-            original_tokens = tokens
-            if min_n == 1:
-                # no need to do any slicing for unigrams
-                # just iterate through the original tokens
-                tokens = list(original_tokens)
-                min_n += 1
-            else:
-                tokens = []
-
-        n_original_tokens = len(original_tokens)
-        tokens_append = tokens.append
-        space_join = " ".join
-
-        for n in range(min_n,
-                        min(max_n + 1, n_original_tokens + 1)):
-            for i in range(n_original_tokens - n + 1):
-                tokens_append(space_join(original_tokens[i: i + n]))
-
-        return tokens
-
-    def count_freq(self,arr):
-        return collections.Counter(map(lambda x:x.lower() ,arr))
-
 
     def preprocess_text(self,text_string, function_list,strFlag=False):
         '''
@@ -353,10 +253,6 @@ class Preprocessor:
         - Exception: occurs should text_string be non-string, or function_list be non-list
         - strFlag : Default True , returns text_string as a list
         '''
-        # if isinstance(text_string,np.ndarray):
-        #
-        # elif text_string is None or text_string == "":
-        #     return ""
 
         if isinstance(text_string, str):
             if isinstance(function_list, list):
@@ -409,7 +305,7 @@ class Preprocessor:
 
         return ''.join([word.strip() for word in file_content])
 
-    def lemmatize(text_string):
+    def lemmatize(self,text_string):
         '''
         Returns base from of text_string using NLTK's WordNetLemmatizer as type str.
         Keyword argument:
@@ -418,10 +314,17 @@ class Preprocessor:
         - Exception: occurs should a non-string argument be passed
         '''
 
+        if not nltk.data.find('corpora/wordnet'):
+            nltk.download('wordnet')
+
+        LEMMATIZER = WordNetLemmatizer()
+
         if text_string is None or text_string == "":
             return ""
         elif isinstance(text_string, str):
             return LEMMATIZER.lemmatize(text_string)
+        elif isinstance(text_string, list):
+            return [LEMMATIZER.lemmatize(word).strip() for word in text_string]
         else:
             raise Exception("string not passed as primary argument")
 
@@ -435,7 +338,9 @@ class Preprocessor:
         if text_string is None or text_string == "":
             return ""
         elif isinstance(text_string, str):
-            return text_string.lower()
+            return text_string.lower().strip()
+        elif isinstance(text_string, list):
+            return [word.lower().strip() for word in text_string]
         else:
             raise Exception("string not passed as argument for text_string")
 
