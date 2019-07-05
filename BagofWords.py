@@ -2,6 +2,10 @@
 ## author - Vaebhav
 #########################
 
+#########################
+## author - Vaebhav
+#########################
+
 import re
 from collections.abc import Iterable
 import numpy as np
@@ -13,8 +17,9 @@ from nltk.corpus import stopwords
 import pandas as pd
 import string
 from Preprocessor_Initial import Preprocessor
-
-
+from FeatureExtraction import CountVector
+from FeatureExtraction import unique_tokens
+from collections import defaultdict
 
 class BagOfWords:
     def __init__(self):
@@ -30,19 +35,20 @@ class BagOfWords:
         """
         Turn tokens into a sequence of n-grams after stop words filtering
         """
+        tokens = self.list2str(tokens).split()
 
         # handle stop words
         if stop_words is not None:
             tokens = [w for w in tokens if w not in stop_words]
 
         # handle token n-grams
-        min_n, max_n = (1,1)
+        min_n, max_n = (1,2)
         if max_n != 1:
             original_tokens = tokens
             if min_n == 1:
                 # no need to do any slicing for unigrams
                 # just iterate through the original tokens
-                tokens = list(original_tokens)
+                #tokens = list(original_tokens)
                 min_n += 1
             else:
                 tokens = []
@@ -67,6 +73,7 @@ class BagOfWords:
         Arguments:
         input_list ---> Input list for which N - gram needs to be generated.
         '''
+        input_list = self.list2str(input_list).split()
 
         bigram_list = []
         for i in range(len(input_list)-1):
@@ -83,8 +90,10 @@ class BagOfWords:
 
 
         input_list = self.list2str(input_list).split()
-        print("---IN----",input_list)
-        return zip(input_list, input_list[1:])
+        #print("---IN----",input_list)
+        out = zip(*(input_list, input_list[1:]))
+        #return #' '.join([str(x) for x in out]) #[x[0]+x[1] for x in out]
+        return [n[0] + ' ' + n[1] for n in out]
         #return zip(nltk.word_tokenize(self.list2str(input_list)), nltk.word_tokenize(self.list2str(input_list[1:])))
 
     def generate_ngrams(self,input_list, n):
@@ -96,11 +105,14 @@ class BagOfWords:
         n ---> Specifies the range for which the grams are to be generated
         '''
 
+        input_list = self.list2str(input_list).split()
+
         return zip(*[input_list[i:] for i in range(n)])
 
     def gen_ngrams_scikit_learn(self,input_tokens,min_n=1,max_n=1):
         original_tokens = []
-        tokens = input_tokens
+
+        tokens = tokens = self.list2str(input_tokens).split()
 
         if max_n != 1:
             original_tokens = tokens
@@ -126,8 +138,48 @@ class BagOfWords:
     def count_freq(self,arr):
         return collections.Counter(map(lambda x:x.lower() ,arr))
 
-    def createVectorSpace(self,doc):
-        print("Ehllo")
+    def createVectorSpace(self,doc,bagCount=0):
+        lenDoc = len(doc)
+
+        # if bagCount > 1:
+        #     doc = list(self.generate_ngrams(doc,bagCount))
+        #     TokenHash = unique_tokens(doc)
+        #     vectorSpace = defaultdict()
+        # else:
+        #     TokenHash = unique_tokens(doc)
+        #     vectorSpace = defaultdict()
+        TokenHash = unique_tokens(doc)
+        vectorSpace = defaultdict()
+        #pprint(TokenHash)
+        #quit()
+
+        for key in TokenHash:
+            vectorSpace[key] = list() #np.ndarray(shape=[1,0],dtype=int)
+            for row in range(lenDoc):
+                #print("-------->",doc[row])
+                #print("---->",key)
+                #quit()
+                if bagCount > 1:
+                    if key in doc[row]:
+                        #np.append(vectorSpace[key],1)
+                        vectorSpace[key].append(1)
+                    else:
+                        #np.append(vectorSpace[key],1)
+                        vectorSpace[key].append(0)
+                else:
+                    if key in doc[row].split():
+                        #np.append(vectorSpace[key],1)
+                        vectorSpace[key].append(1)
+                    else:
+                        #np.append(vectorSpace[key],1)
+                        vectorSpace[key].append(0)
+        #pprint(vectorSpace)
+        #quit()
+        df = pd.DataFrame.from_dict(vectorSpace)
+
+        return df
+
+
 
     def tokenizeDocument(self,doc,tokenize='sentence'):
 
@@ -178,5 +230,52 @@ bowObj = BagOfWords()
 
 token_sent,temp = bowObj.tokenizeDocument(Testcorpus)
 
-for each in bowObj.gen_bigrams(token_sent):
-    print("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<---->",each)
+token_test = bowObj.gen_bigrams(token_sent)
+
+#print(token_test)
+#quit()
+df = bowObj.createVectorSpace(token_test,2)
+
+#print(len(token))
+pprint(df)
+df.to_excel('df_test.xlsx')
+
+#token_sent = bowObj.generate_bigrams_traditional(token_sent)
+
+#token_test = bowObj._word_ngrams(token_sent)
+#token_test = bowObj.gen_bigrams(token_sent)
+#print(token_test)
+#print(type(token_test))
+#print(type(token_test))
+#quit()
+#print(token_sent)
+#
+
+#
+
+
+
+### Uncommment from here
+
+# from sklearn.feature_extraction.text import CountVectorizer
+#
+# cv = CountVectorizer(ngram_range=(1,2),min_df=0., max_df=1.)
+# #cv = CountVectorizer(min_df=0., max_df=1.)
+# cv_matrix = cv.fit_transform(token_sent)
+# cv_matrix = cv_matrix.toarray()
+#
+#
+# vocab = cv.get_feature_names()
+# # show document feature vectors
+# df2 = pd.DataFrame(cv_matrix, columns=vocab)
+#
+#
+# pprint(df2)
+# df2.to_excel('df2_test.xlsx')
+
+
+
+
+
+# for counter,each in enumerate(bowObj.generate_ngrams(token_sent,2)):
+#     print(counter,"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<---->",each)
