@@ -1,3 +1,7 @@
+#########################
+## author - Vaebhav
+#########################
+
 import re
 from collections.abc import Iterable
 import numpy as np
@@ -21,6 +25,20 @@ def unique_tokens(token_list,freqDict=False):
 
     '''
 
+    #print("tokenList ---->",token_list)
+
+    # if len(token_list[0]) > 1:
+    #     wordTokenFlag = True
+    # else:
+    #     wordTokenFlag = False
+    #
+    # if wordTokenFlag:
+    #     token_list = [sent if isinstance(sent,tuple) else sent.split() for sent in token_list ]
+
+
+    #print("Flag-------->",wordTokenFlag)
+    #print("tokenList ---->",token_list)
+
     unq_token = collections.defaultdict()
     freq_hash = collections.defaultdict()
     unq_token.default_factory = unq_token.__len__
@@ -35,7 +53,6 @@ def unique_tokens(token_list,freqDict=False):
             for each in range(len(token_list[input_token])):
                 try:
                     key = token_list[input_token][each].lower().strip()
-                    key2 = key*2
                     if len(key) > 1 and key not in punct_list:
                         unq_token[key]
                         #print('Key ---',key,'Len--',len(key))
@@ -49,7 +66,7 @@ def unique_tokens(token_list,freqDict=False):
                     next
         else:
             try:
-                key = token_list[input_token].lower().strip()
+                key = token_list[input_token]
                 if len(key) > 1:
                     unq_token[key]
                     if key in freq_hash:
@@ -62,7 +79,6 @@ def unique_tokens(token_list,freqDict=False):
                 next
 
 
-    #pprint(freq_hash)
     if freqDict:
         return unq_token,freq_hash
     else:
