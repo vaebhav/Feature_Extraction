@@ -1,3 +1,5 @@
+#!/usr/local/bin/python3
+
 #########################
 ## author - Vaebhav
 #########################
@@ -5,13 +7,15 @@
 import re
 from collections.abc import Iterable
 import numpy as np
-import collections
-import nltk
+from collections import defaultdict
 from pprint import pprint
-import itertools as it
 from nltk.corpus import stopwords
 import pandas as pd
 import string
+import os
+import nltk
+from sklearn.feature_extraction.text import CountVectorizer
+from preprocessor.text_preprocessor import TextPreprocessor
 
 def unique_tokens(token_list,freqDict=False):
 
@@ -25,29 +29,13 @@ def unique_tokens(token_list,freqDict=False):
 
     '''
 
-    #print("tokenList ---->",token_list)
-
-    # if len(token_list[0]) > 1:
-    #     wordTokenFlag = True
-    # else:
-    #     wordTokenFlag = False
-    #
-    # if wordTokenFlag:
-    #     token_list = [sent if isinstance(sent,tuple) else sent.split() for sent in token_list ]
-
-
-    #print("Flag-------->",wordTokenFlag)
-    #print("tokenList ---->",token_list)
-
-    unq_token = collections.defaultdict()
-    freq_hash = collections.defaultdict()
+    unq_token = defaultdict()
+    freq_hash = defaultdict()
     unq_token.default_factory = unq_token.__len__
     punct_list = list(map(lambda x: x *2, string.punctuation))
     punct_list.extend(list(string.punctuation))
-    #print('Punc List ----',punct_list)
 
     for input_token in range(len(token_list)):
-        #unq_token , freq_hash = generate_unq_tokens(token_list[input_token])
         key = str()
         if isinstance(token_list[input_token],(list,np.ndarray)):
             for each in range(len(token_list[input_token])):
@@ -55,7 +43,6 @@ def unique_tokens(token_list,freqDict=False):
                     key = token_list[input_token][each].lower().strip()
                     if len(key) > 1 and key not in punct_list:
                         unq_token[key]
-                        #print('Key ---',key,'Len--',len(key))
                         if key in freq_hash:
                             freq_hash[key] += 1
                         else:
@@ -66,7 +53,7 @@ def unique_tokens(token_list,freqDict=False):
                     next
         else:
             try:
-                key = token_list[input_token]
+                key = token_list[input_token].strip()
                 if len(key) > 1:
                     unq_token[key]
                     if key in freq_hash:
@@ -127,6 +114,7 @@ def generate_unq_tokens_singleDoc(input_document):
 
 
 class CountVector:
+
     def count_freq(self,arr):
         return collections.Counter(map(lambda x:x.lower() ,arr))
 
@@ -249,8 +237,6 @@ class TFIDFVector:
 
           tfidfHash = collections.defaultdict()
 
-          #print('Doc Size ----',doc_size)
-
           temp_dict_freq = collections.Counter()
 
           if isinstance(input_docs,str) or not isinstance(input_docs, Iterable):
@@ -287,3 +273,180 @@ class TFIDFVector:
               return df,tfidfHash
           else:
               return df
+
+
+class BagOfWords:
+
+    def __init__(self):
+        hd = os.path.expanduser('~')
+        try:
+            if not nltk.data.find(hd + '/nltk_data/tokenizers/punkt'):
+                nltk.download('punkt')
+        except LookupError:
+            nltk.download('punkt')
+
+    def list2str(self,file_content):
+
+        return ' '.join([word.strip() for word in file_content])
+
+    def _word_ngrams(self, tokens, stop_words=None):
+
+        """
+        Turn tokens into a sequence of n-grams after stop words filtering
+        """
+        tokens = self.list2str(tokens).split()
+
+        # handle stop words
+        if stop_words is not None:
+            tokens = [w for w in tokens if w not in stop_words]
+
+        # handle token n-grams
+        min_n, max_n = (1,2)
+        if max_n != 1:
+            original_tokens = tokens
+            if min_n == 1:
+                # no need to do any slicing for unigrams
+                # just iterate through the original tokens
+                #tokens = list(original_tokens)
+                min_n += 1
+            else:
+                tokens = []
+
+            n_original_tokens = len(original_tokens)
+
+            # bind method outside of loop to reduce overhead
+            tokens_append = tokens.append
+            space_join = " ".join
+
+            for n in range(min_n,
+                            min(max_n + 1, n_original_tokens + 1)):
+                for i in range(n_original_tokens - n + 1):
+                    tokens_append(space_join(original_tokens[i: i + n]))
+
+        return tokens
+
+    def generate_bigrams_traditional(self,input_list):
+
+        '''
+        Generate BiGrams for an input list . Traditional way
+        Arguments:
+        input_list ---> Input list for which N - gram needs to be generated.
+        '''
+        input_list = self.list2str(input_list).split()
+
+        bigram_list = []
+        for i in range(len(input_list)-1):
+            bigram_list.append((input_list[i], input_list[i+1]))
+        return bigram_list
+
+    def gen_bigrams(self,input_list):
+
+        '''
+        Generate BiGrams for an input list
+        Arguments:
+        input_list ---> Input list for which N - gram needs to be generated.
+        '''
+
+
+        input_list = self.list2str(input_list).split()
+
+        result = zip(*(input_list, input_list[1:]))
+
+        return [' '.join(n) for n in result]
+
+    def generate_ngrams(self,input_list, n):
+
+        '''
+        Generate N Grams for an input list
+        Arguments:
+        input_list ---> Input list for which N - gram needs to be generated.
+        n ---> Specifies the range for which the grams are to be generated
+        '''
+        if not isinstance(input_list,str):
+            input_list = self.list2str(input_list).split()
+        elif isinstance(input_list,str):
+            input_list = input_list.split()
+
+
+        result = zip(*[input_list[i:] for i in range(n)])
+
+        return [ ' '.join(i) for i in result ]
+
+    def gen_ngrams_scikit_learn(self,input_tokens,min_n=1,max_n=1):
+        original_tokens = []
+
+        tokens = tokens = self.list2str(input_tokens).split()
+
+        if max_n != 1:
+            original_tokens = tokens
+            if min_n == 1:
+                # no need to do any slicing for unigrams
+                # just iterate through the original tokens
+                tokens = list(original_tokens)
+                min_n += 1
+            else:
+                tokens = []
+
+        n_original_tokens = len(original_tokens)
+        tokens_append = tokens.append
+        space_join = " ".join
+
+        for n in range(min_n,
+                        min(max_n + 1, n_original_tokens + 1)):
+            for i in range(n_original_tokens - n + 1):
+                tokens_append(space_join(original_tokens[i: i + n]))
+
+        return tokens
+
+    def count_freq(self,arr):
+        return collections.Counter(map(lambda x:x.lower() ,arr))
+
+    def createVectorSpace(self,doc,bagCount=0):
+
+        lenDoc = len(doc)
+
+        if bagCount > 1:
+            ngram_doc = self.generate_ngrams(doc,bagCount)
+            TokenHash = unique_tokens(ngram_doc,freqDict=False)
+        else:
+            word_doc = self.list2str(doc).split()
+            TokenHash = unique_tokens(word_doc)
+
+        vectorSpace = defaultdict()
+
+        for idx,sent_token in enumerate(doc):
+            if bagCount > 1:
+                ngram = self.generate_ngrams(sent_token,bagCount)
+            else:
+                ngram = sent_token.split()
+            for word in ngram:
+                if word in TokenHash and word not in vectorSpace:
+                #if word in TokenHash:
+                    #if word not in vectorSpace:
+                        vectorSpace[word] = np.zeros(shape=lenDoc,dtype=int)
+                        vectorSpace[word][idx] = 1
+                else:
+                    vectorSpace[word][idx] = 1
+
+        df = pd.DataFrame.from_dict(vectorSpace)
+
+        return df
+
+
+    def tokenizeDocument(self,doc,tokenize='sentence'):
+
+        if tokenize == 'sentence':
+            spt = nltk.PunktSentenceTokenizer()
+            tokens = spt.tokenize(doc)
+        else:
+            wpt = nltk.WordPunctTokenizer()
+            tokens = wpt.tokenize(doc)
+
+        preProcObj = TextPreprocessor()
+
+        final_tokens = preProcObj.preprocess_text(tokens,[preProcObj.removeStopWords,preProcObj.removeNumbers],strFlag=False)
+
+        # re-create document from filtered tokens
+        doc = ' '.join(final_tokens)
+
+        return final_tokens,doc

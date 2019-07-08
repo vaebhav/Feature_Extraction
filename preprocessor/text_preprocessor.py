@@ -1,4 +1,8 @@
+#!/usr/local/bin/python3
 
+#########################
+## author - Vaebhav
+#########################
 
 import re
 from collections.abc import Iterable
@@ -7,12 +11,9 @@ import collections
 import nltk
 from pprint import pprint
 import itertools as it
-import pandas as pd
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
-from nltk.tokenize import RegexpTokenizer
-import sys
-
+import os
 
 # Some strings for ctype-style character classification
 whitespace = ' \t\n\r\v\f'
@@ -40,7 +41,7 @@ trans_table = {
     }
 
 
-class Preprocessor:
+class TextPreprocessor:
 
     def removeShortwords(self,text):
         text = re.sub(r'\b\w{,1}\b', '',text)
@@ -168,16 +169,37 @@ class Preprocessor:
         Removal of stop words for a text corpus
         Stop words are cached from nltk module
         '''
-        if not nltk.data.find('corpora/stopwords'):
+
+        hd = os.path.expanduser('~')
+
+        try:
+            if not nltk.data.find(hd + '/nltk_data/corpora/stopwords'):
+                nltk.download('stopwords')
+        except LookupError:
             nltk.download('stopwords')
 
         cachedStopWords = stopwords.words("english")
+
+        inputText = self.lowercase(inputText)
+        inputText = self.removePunctuation(inputText)
 
         if isinstance(inputText,str):
             text = ' '.join([word for word in inputText.split() if word not in cachedStopWords])
             return text.strip()
         elif isinstance(inputText,list):
-            return [word.strip() for word in inputText if word not in cachedStopWords]
+            result = list()
+            for sent in inputText:
+                sent_token = ""
+                for word in sent.split():
+                    if word not in cachedStopWords:
+                        sent_token = sent_token + " " + word
+                    else:
+                        next
+                result.append(sent_token.strip())
+            return result
+
+            #result = [ word for sent in inputText for word in sent.split() if word not in cachedStopWords]
+            #return [ word for sent in inputText for word in sent.split() if word not in cachedStopWords]
 
     def additional_text_removal(self,text):
 
@@ -268,7 +290,7 @@ class Preprocessor:
                 raise Exception("list of functions not passed as argument for function_list")
         elif isinstance(text_string, list):
             #text_string = self.list2str(text_string)
-            if isinstance(function_list, list):
+            if isinstance(function_list, (list,np.ndarray)):
                 for func in function_list:
                     try:
                         text_string = func(text_string)
@@ -282,24 +304,6 @@ class Preprocessor:
                     return text_string
             else:
                 raise Exception("list of functions not passed as argument for function_list")
-        elif isinstance(text_string, np.ndarray):
-            #text_string = self.list2str(text_string)
-            if isinstance(function_list, list):
-                for func in function_list:
-                    try:
-                        text_string = func(text_string)
-                    except (NameError, TypeError):
-                        raise Exception("Invalid function passed as element of function_list.\nKindly check for valid functions")
-                    except:
-                        raise
-                if strFlag:
-                    return ' '.join([x.strip() for x in text_string])
-                else:
-                    return text_string
-            else:
-                raise Exception("list of functions not passed as argument for function_list")
-        else:
-            raise Exception("string not passed as argument for text_string")
 
     def list2str(self,file_content):
 
@@ -313,8 +317,8 @@ class Preprocessor:
         Exceptions raised:
         - Exception: occurs should a non-string argument be passed
         '''
-
-        if not nltk.data.find('corpora/wordnet'):
+        hd = os.path.expanduser('~')
+        if not nltk.data.find(hd + '/corpora/wordnet'):
             nltk.download('wordnet')
 
         LEMMATIZER = WordNetLemmatizer()
